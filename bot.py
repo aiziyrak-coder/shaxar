@@ -27,7 +27,7 @@ MONITOR_BOT_TOKEN = "8542390581:AAEf7VrQnkILs1ZEi71krHNen4x5r_BgNQA"
 CHANNEL_TO_MONITOR = "@springuzz"
 
 # API base URL
-API_BASE_URL = "http://127.0.0.1:8000/api"  # Make sure backend is running on port 8000
+API_BASE_URL = "https://smartcityapi.aiproduct.uz/api"  # Make sure backend is running on port 8000
 
 class WasteBinBot:
     def __init__(self):
