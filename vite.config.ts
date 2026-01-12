@@ -17,6 +17,16 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': new URL('.', import.meta.url).pathname,
         }
+      },
+      build: {
+        rollupOptions: {
+          output: {
+            // Generate unique filenames with hash for cache busting
+            entryFileNames: 'assets/[name]-[hash].js',
+            chunkFileNames: 'assets/[name]-[hash].js',
+            assetFileNames: 'assets/[name]-[hash].[ext]'
+          }
+        }
       }
     };
 });
