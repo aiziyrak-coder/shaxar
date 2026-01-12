@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 MONITOR_BOT_TOKEN = "8562869800:AAESHchv-RVWsHjJCTYlxEv1F8mooMpc1Fs"
 
 # API base URL
-API_BASE_URL = "https://smartcityapi.aiproduct.uz/api"
+API_BASE_URL = "https://ferganaapi.cdcgroup.uz/api"
 # Optional: limit processing to a specific Telegram group ID
 # Set this to your group ID (e.g., -1001234567890) or None to accept from any chat
 # Current group: https://t.me/springuzz - Monitoring IoT sensor data messages
