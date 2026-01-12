@@ -680,16 +680,8 @@ const WasteManagement: React.FC<WasteManagementProps> = ({
                                            </div>
                                        </div>
 
-                                       <div className="flex flex-col gap-4">
-                                           <div className="flex gap-4">
-                                               <button type="button" onClick={() => handleDeleteBinItem(selectedEntity.data.id)} className="px-6 py-4 bg-red-50 text-red-500 hover:bg-red-100 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2">
-                                                   <Trash2 size={16}/> O'chirish
-                                               </button>
-                                               <button type="button" onClick={() => openBinModal(selectedEntity.data)} className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 shadow-xl transition-all active:scale-95">Tahrirlash</button>
-                                           </div>
-                                           
-                                           {/* QR Code Section - Enhanced */}
-                                           {selectedEntity.data.qrCodeUrl && (
+                                       {/* QR Code Section - Enhanced - MOVED TO TOP */}
+                                       {selectedEntity.data.qrCodeUrl && (
                                                <div className="mt-4 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-3xl border-2 border-blue-200 shadow-lg">
                                                    <div className="flex items-center justify-between mb-4">
                                                        <h4 className="text-sm font-black text-blue-900 uppercase flex items-center gap-2">
@@ -737,6 +729,14 @@ const WasteManagement: React.FC<WasteManagementProps> = ({
                                                    </div>
                                                </div>
                                            )}
+
+                                       <div className="flex flex-col gap-4">
+                                           <div className="flex gap-4">
+                                               <button type="button" onClick={() => handleDeleteBinItem(selectedEntity.data.id)} className="px-6 py-4 bg-red-50 text-red-500 hover:bg-red-100 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2">
+                                                   <Trash2 size={16}/> O'chirish
+                                               </button>
+                                               <button type="button" onClick={() => openBinModal(selectedEntity.data)} className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 shadow-xl transition-all active:scale-95">Tahrirlash</button>
+                                           </div>
                                        </div>
                                    </div>
                                </div>
