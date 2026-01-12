@@ -5,7 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Farg'ona Shahar Situatsion Markazi</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
@@ -17,50 +18,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <style>
-      :root {
-        --glass-border: rgba(255, 255, 255, 0.4);
-        --glass-bg: rgba(255, 255, 255, 0.65);
-        --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-      }
-
-      /* Hide routing directions panel from map */
-      .leaflet-routing-container {
-        display: none !important;
-      }
-
-      html {
-        font-size: 12.5px;
-      }
-
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: #eef2f6;
-        margin: 0;
-        padding: 0;
-        height: 100vh;
-        width: 100vw;
-        overflow: hidden;
-      }
-
-      #root {
-        height: 100%;
-        width: 100%;
-        overflow: hidden;
-      }
-
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 4px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.02);
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(0,0,0,0.1);
-        border-radius: 10px;
-      }
-    </style>
   <script type="importmap">
 {
   "imports": {
@@ -74,7 +31,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="text-slate-800 antialiased selection:bg-blue-500/20 selection:text-blue-900">
     <div id="root"></div>
