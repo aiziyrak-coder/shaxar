@@ -229,12 +229,43 @@ const ClimateMonitor: React.FC<ClimateMonitorProps> = ({ facilities, activeMFY =
       
       // Save to backend
       try {
-        const savedDevice = await ApiService.createIoTDevice(deviceToAdd);
-        // Update local state with the backend response
-        setIotDevices(prev => prev.map(d => d.id === deviceToAdd.id ? savedDevice : d));
-      } catch (error) {
+        // Check if device with same deviceId already exists
+        const existingDevice = iotDevices.find(d => d.deviceId === deviceToAdd.deviceId);
+        
+        if (existingDevice) {
+          // Update existing device
+          console.log('Device already exists, updating...', existingDevice.id);
+          const savedDevice = await ApiService.updateIoTDevice(existingDevice.id, deviceToAdd);
+          setIotDevices(prev => prev.map(d => d.id === existingDevice.id ? savedDevice : d));
+        } else {
+          // Create new device
+          const savedDevice = await ApiService.createIoTDevice(deviceToAdd);
+          setIotDevices(prev => prev.map(d => d.id === deviceToAdd.id ? savedDevice : d));
+        }
+      } catch (error: any) {
         console.error('Error saving IoT device to backend:', error);
-        alert('IoT qurilmani saqlashda xatolik yuz berdi. Qurilma faqat lokal saqlangan.');
+        
+        // If duplicate error, try to update instead
+        if (error?.message?.includes('already exists') || error?.status === 400) {
+          try {
+            // Fetch all devices and find the existing one
+            const allDevices = await ApiService.getIoTDevices();
+            const existingDevice = allDevices.find(d => d.deviceId === deviceToAdd.deviceId);
+            
+            if (existingDevice) {
+              const savedDevice = await ApiService.updateIoTDevice(existingDevice.id, deviceToAdd);
+              setIotDevices(prev => prev.map(d => d.deviceId === deviceToAdd.deviceId ? savedDevice : d));
+              alert('Qurilma allaqachon mavjud edi, yangilandi.');
+            } else {
+              alert('IoT qurilmani saqlashda xatolik yuz berdi.');
+            }
+          } catch (updateError) {
+            console.error('Error updating device:', updateError);
+            alert('IoT qurilmani saqlashda xatolik yuz berdi. Qurilma faqat lokal saqlangan.');
+          }
+        } else {
+          alert('IoT qurilmani saqlashda xatolik yuz berdi. Qurilma faqat lokal saqlangan.');
+        }
       }
       
       // Reset form and close modal
