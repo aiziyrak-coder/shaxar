@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { WasteBin, Coordinate, TozaHududType, Truck } from '../types';
-import { Camera, MapPin, Trash2, X, Plus, Save, Locate, RefreshCw, Building2, Video, Scan, ShieldCheck, ExternalLink, Navigation, Globe, Truck as TruckIcon, Phone, User, Fuel, Settings, Edit, MoreVertical, Bot, Eye, AlertCircle, Key, Lock, Hash, Cast } from 'lucide-react';
+import { Camera, MapPin, Trash2, X, Plus, Save, Locate, RefreshCw, Building2, Video, Scan, ShieldCheck, ExternalLink, Navigation, Globe, Truck as TruckIcon, Phone, User, Fuel, Settings, Edit, MoreVertical, Bot, Eye, AlertCircle, Key, Lock, Hash, Cast, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { analyzeBinImage } from '../services/geminiService'; // Import Service
 
@@ -688,21 +688,52 @@ const WasteManagement: React.FC<WasteManagementProps> = ({
                                                <button type="button" onClick={() => openBinModal(selectedEntity.data)} className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 shadow-xl transition-all active:scale-95">Tahrirlash</button>
                                            </div>
                                            
-                                           {/* QR Code Section */}
+                                           {/* QR Code Section - Enhanced */}
                                            {selectedEntity.data.qrCodeUrl && (
-                                               <div className="mt-4 bg-white p-4 rounded-2xl border border-slate-200">
-                                                   <h4 className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-2">
-                                                       <Scan size={14}/> QR Kod
-                                                   </h4>
-                                                   <div className="flex flex-col items-center">
-                                                       <img 
-                                                           src={selectedEntity.data.qrCodeUrl} 
-                                                           alt="QR kod - konteynerni skaner qilish uchun" 
-                                                           className="w-32 h-32 object-contain border-2 border-dashed border-slate-200 rounded-lg"
-                                                       />
-                                                       <p className="text-xs text-slate-500 mt-2 text-center">
-                                                           Bu QR kodni skaner qilish orqali konteynerni aniqlash mumkin
-                                                       </p>
+                                               <div className="mt-4 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-3xl border-2 border-blue-200 shadow-lg">
+                                                   <div className="flex items-center justify-between mb-4">
+                                                       <h4 className="text-sm font-black text-blue-900 uppercase flex items-center gap-2">
+                                                           <Scan size={18} className="text-blue-600"/> QR Kod - Telegram Bot
+                                                       </h4>
+                                                       <a 
+                                                           href={selectedEntity.data.qrCodeUrl} 
+                                                           download={`konteyner-${selectedEntity.data.id}-qr.png`}
+                                                           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-lg hover:shadow-xl active:scale-95"
+                                                       >
+                                                           <Download size={14}/> Yuklab olish
+                                                       </a>
+                                                   </div>
+                                                   
+                                                   <div className="flex flex-col items-center bg-white p-6 rounded-2xl border-2 border-dashed border-blue-300">
+                                                       <div className="relative group">
+                                                           <img 
+                                                               src={selectedEntity.data.qrCodeUrl} 
+                                                               alt="QR kod - konteynerni skaner qilish uchun" 
+                                                               className="w-48 h-48 object-contain transition-transform group-hover:scale-105"
+                                                           />
+                                                           {/* Hover overlay */}
+                                                           <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/10 transition-colors rounded-xl flex items-center justify-center">
+                                                               <Scan size={32} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"/>
+                                                           </div>
+                                                       </div>
+                                                       
+                                                       <div className="mt-4 text-center space-y-2">
+                                                           <p className="text-sm font-bold text-blue-900">
+                                                               📱 Telegram Bot orqali
+                                                           </p>
+                                                           <p className="text-xs text-slate-600 max-w-xs">
+                                                               Bu QR kodni skaner qilganda bot ochiladi. Konteyner rasmini yuboring va AI tahlil qiladi!
+                                                           </p>
+                                                           <div className="flex items-center justify-center gap-2 pt-2">
+                                                               <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold">
+                                                                   @tozafargonabot
+                                                               </span>
+                                                               <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold flex items-center gap-1">
+                                                                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                                                                   AI Tahlil
+                                                               </span>
+                                                           </div>
+                                                       </div>
                                                    </div>
                                                </div>
                                            )}
