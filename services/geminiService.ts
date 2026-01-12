@@ -2,14 +2,23 @@
 import { GoogleGenAI, GenerateContentResponse, Modality, Type } from "@google/genai";
 
 // Use recommended model names as per guidelines
-const VISION_MODEL = 'gemini-3-flash-preview';
-const CHAT_MODEL = 'gemini-3-flash-preview';
+const VISION_MODEL = 'gemini-2.0-flash-exp';
+const CHAT_MODEL = 'gemini-2.0-flash-exp';
 
 // --- IMAGE ANALYSIS FOR WASTE BINS ---
 export const analyzeBinImage = async (base64Image: string): Promise<{ isFull: boolean; fillLevel: number; confidence: number; notes: string }> => {
-  // Always use process.env.API_KEY directly
-  const apiKey = process.env.API_KEY || '';
-  if (!apiKey) throw new Error("API Key Required");
+  // Get API key from environment
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
+  
+  if (!apiKey) {
+    console.error("⚠️ Gemini API key topilmadi!");
+    return { 
+      isFull: false, 
+      fillLevel: 0, 
+      confidence: 0, 
+      notes: "⚠️ AI service ishlamayapti: API key topilmadi. Iltimos, GEMINI_API_KEY sozlang." 
+    };
+  }
   
   const ai = new GoogleGenAI({ apiKey });
   
