@@ -135,20 +135,59 @@ const App: React.FC = () => {
     loadData();
   }, [session]);
 
-  // Polling to update bins (For Bot uploads) - updated to handle async
+  // Real-time polling for all data (every 30 seconds)
   useEffect(() => {
     if (!session) return;
     
-    const interval = setInterval(async () => {
+    const pollData = async () => {
       try {
-        const updatedBins = await DB.getBins();
+        console.log('🔄 Refreshing data...');
+        
+        // Poll all active module data
+        const [
+          updatedBins,
+          updatedTrucks,
+          updatedFacilities,
+          updatedRooms,
+          updatedBoilers,
+          updatedIoTDevices
+        ] = await Promise.all([
+          DB.getBins(),
+          DB.getTrucks(),
+          DB.getFacilities(),
+          DB.getRooms(),
+          DB.getBoilers(),
+          DB.getIoTDevices()
+        ]);
+        
+        // Update state
         setBins(updatedBins);
+        setTrucks(updatedTrucks);
+        setFacilities(updatedFacilities);
+        setRooms(updatedRooms);
+        setBoilers(updatedBoilers);
+        setIoTDevices(updatedIoTDevices);
+        
+        console.log('✅ Data refreshed:', {
+          bins: updatedBins.length,
+          trucks: updatedTrucks.length,
+          facilities: updatedFacilities.length
+        });
       } catch (error) {
-        console.error('Error polling bins:', error);
+        console.error('Error polling data:', error);
       }
-    }, 30000); // Check DB every 30s instead of 5s to reduce API calls
+    };
     
-    return () => clearInterval(interval);
+    // Initial poll after 5 seconds
+    const initialTimeout = setTimeout(pollData, 5000);
+    
+    // Then poll every 30 seconds
+    const interval = setInterval(pollData, 30000);
+    
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
   }, [session]);
 
   // Sync back to DB when state changes - updated to handle async
