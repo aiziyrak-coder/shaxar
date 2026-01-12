@@ -8,7 +8,7 @@ const CHAT_MODEL = 'gemini-2.0-flash-exp';
 // --- IMAGE ANALYSIS FOR WASTE BINS ---
 export const analyzeBinImage = async (base64Image: string): Promise<{ isFull: boolean; fillLevel: number; confidence: number; notes: string }> => {
   // Get API key from environment
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || '';
   
   if (!apiKey) {
     console.error("⚠️ Gemini API key topilmadi!");
