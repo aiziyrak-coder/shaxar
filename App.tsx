@@ -168,21 +168,25 @@ const App: React.FC = () => {
         setBoilers(updatedBoilers);
         setIoTDevices(updatedIoTDevices);
         
-        console.log('✅ Data refreshed:', {
+        const timestamp = new Date().toLocaleTimeString('uz-UZ');
+        console.log(`✅ ${timestamp} - Ma'lumotlar yangilandi:`, {
           bins: updatedBins.length,
           trucks: updatedTrucks.length,
-          facilities: updatedFacilities.length
+          facilities: updatedFacilities.length,
+          rooms: updatedRooms.length,
+          boilers: updatedBoilers.length,
+          iot: updatedIoTDevices.length
         });
       } catch (error) {
         console.error('Error polling data:', error);
       }
     };
     
-    // Initial poll after 5 seconds
-    const initialTimeout = setTimeout(pollData, 5000);
+    // Initial poll after 2 seconds
+    const initialTimeout = setTimeout(pollData, 2000);
     
-    // Then poll every 30 seconds
-    const interval = setInterval(pollData, 30000);
+    // Then poll every 5 seconds (real-time updates!)
+    const interval = setInterval(pollData, 5000);
     
     return () => {
       clearTimeout(initialTimeout);
