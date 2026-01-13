@@ -798,14 +798,11 @@ def main():
         logger.info("Main bot is starting...")
         logger.info(f"Bot will connect to API at: {API_BASE_URL}")
         
-        # Run polling with longer intervals to reduce conflicts
-        # This helps avoid multiple bots trying to fetch updates simultaneously
-        # Run polling with error handling for conflicts
-        # Use a longer interval and better error handling
+        # Run polling with fast response time
         main_application.run_polling(
             allowed_updates=Update.ALL_TYPES, 
             drop_pending_updates=True,
-            poll_interval=60.0,  # Even longer interval to reduce conflicts
+            poll_interval=1.0,  # Fast polling - 1 second
             bootstrap_retries=3,  # Limit retries on startup
         )
     except KeyboardInterrupt:
