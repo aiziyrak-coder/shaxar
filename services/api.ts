@@ -18,6 +18,27 @@ const mapIoTDevice = (d: any): IoTDevice => ({
   last_sensor_update: d.last_sensor_update,
 });
 
+// Map backend WasteBin (snake_case) to frontend WasteBin (camelCase)
+const mapWasteBin = (bin: any): WasteBin => ({
+  id: bin.id,
+  location: bin.location,
+  address: bin.address,
+  tozaHudud: bin.toza_hudud,
+  fillLevel: bin.fill_level,
+  fillRate: bin.fill_rate,
+  lastAnalysis: bin.last_analysis,
+  imageUrl: bin.image_url,
+  imageSource: bin.image_source,
+  cameraUrl: bin.camera_url,
+  googleMapsUrl: bin.google_maps_url,
+  isFull: bin.is_full,
+  deviceHealth: bin.device_health,
+  qrCodeUrl: bin.qr_code_url, // ✅ MAPPING ADDED!
+  image: bin.image,
+  organizationId: bin.organization_id,
+  trend: bin.trend,
+});
+
 // Helper function to get auth token from localStorage
 const getAuthToken = (): string | null => {
   return localStorage.getItem('authToken');
@@ -245,11 +266,15 @@ export const ApiService = {
     makeRequest<void>(`/moisture-sensors/${id}/`, { method: 'DELETE' }),
 
   // Waste Bins
-  getWasteBins: (): Promise<WasteBin[]> => 
-    makeRequest<WasteBin[]>('/waste-bins/'),
+  getWasteBins: async (): Promise<WasteBin[]> => {
+    const bins = await makeRequest<any[]>('/waste-bins/');
+    return bins.map(mapWasteBin);
+  },
   
-  getWasteBin: (id: string): Promise<WasteBin> => 
-    makeRequest<WasteBin>(`/waste-bins/${id}/`),
+  getWasteBin: async (id: string): Promise<WasteBin> => {
+    const bin = await makeRequest<any>(`/waste-bins/${id}/`);
+    return mapWasteBin(bin);
+  },
   
   createWasteBin: (bin: WasteBin): Promise<WasteBin> => {
     const { organizationId, googleMapsUrl, fillLevel, fillRate, lastAnalysis, imageUrl, imageSource, cameraUrl, isFull, deviceHealth, qrCodeUrl, tozaHudud, image, ...rest } = bin as any;
@@ -277,10 +302,11 @@ export const ApiService = {
       image: image,
     };
 
-    return makeRequest<WasteBin>('/waste-bins/', { method: 'POST', body: JSON.stringify(payload) });
+    return makeRequest<any>('/waste-bins/', { method: 'POST', body: JSON.stringify(payload) })
+      .then(mapWasteBin);
   },
   
-  updateWasteBin: (id: string, bin: Partial<WasteBin>): Promise<WasteBin> => {
+  updateWasteBin: async (id: string, bin: Partial<WasteBin>): Promise<WasteBin> => {
     const { organizationId, googleMapsUrl, fillLevel, fillRate, lastAnalysis, imageUrl, imageSource, cameraUrl, isFull, deviceHealth, qrCodeUrl, tozaHudud, image, ...rest } = bin as any;
     
     const payload: any = { ...rest };
@@ -304,7 +330,8 @@ export const ApiService = {
     if (tozaHudud) payload.toza_hudud = tozaHudud;
     if (image) payload.image = image;
 
-    return makeRequest<WasteBin>(`/waste-bins/${id}/`, { method: 'PUT', body: JSON.stringify(payload) });
+    const result = await makeRequest<any>(`/waste-bins/${id}/`, { method: 'PUT', body: JSON.stringify(payload) });
+    return mapWasteBin(result);
   },
   
   deleteWasteBin: (id: string): Promise<void> => 
