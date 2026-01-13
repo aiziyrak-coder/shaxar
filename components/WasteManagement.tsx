@@ -482,7 +482,8 @@ const WasteManagement: React.FC<WasteManagementProps> = ({
              {/* Content List */}
              <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
                 {activeTab === 'BINS' ? (
-                    bins.map(bin => (
+                    // Filter unique bins by ID to prevent duplicates
+                    Array.from(new Map(bins.map(bin => [bin.id, bin])).values()).map(bin => (
                         <div 
                             key={bin.id} 
                             onClick={() => {

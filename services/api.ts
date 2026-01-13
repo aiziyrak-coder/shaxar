@@ -634,4 +634,67 @@ export const ApiService = {
   // Search functionality
   searchEntities: (query: string, type?: string): Promise<any> => 
     makeRequest<any>(`/search/?q=${encodeURIComponent(query)}${type ? `&type=${type}` : ''}`),
+  
+  // ==================== NEW API METHODS FOR ENHANCED FUNCTIONALITY ====================
+  
+  // Waste Tasks
+  getWasteTasks: (): Promise<any[]> => 
+    makeRequest<any[]>('/waste-tasks/'),
+  
+  createWasteTask: (task: any): Promise<any> => 
+    makeRequest<any>('/waste-tasks/', { method: 'POST', body: JSON.stringify(task) }),
+  
+  updateWasteTask: (id: string, updates: any): Promise<any> => 
+    makeRequest<any>(`/waste-tasks/${id}/`, { method: 'PATCH', body: JSON.stringify(updates) }),
+  
+  autoAssignTask: (binId: string): Promise<any> => 
+    makeRequest<any>('/waste-tasks/auto-assign/', { method: 'POST', body: JSON.stringify({ bin_id: binId }) }),
+  
+  // Route Optimization
+  optimizeRoute: (truckId: string, binIds: string[]): Promise<any> => 
+    makeRequest<any>('/routes/optimize/', { method: 'POST', body: JSON.stringify({ truck_id: truckId, bin_ids: binIds }) }),
+  
+  // Alerts
+  getAlerts: (): Promise<any[]> => 
+    makeRequest<any[]>('/alerts/'),
+  
+  createAlert: (alert: any): Promise<any> => 
+    makeRequest<any>('/alerts/', { method: 'POST', body: JSON.stringify(alert) }),
+  
+  // Climate Schedules
+  getClimateSchedules: (): Promise<any[]> => 
+    makeRequest<any[]>('/climate-schedules/'),
+  
+  createClimateSchedule: (schedule: any): Promise<any> => 
+    makeRequest<any>('/climate-schedules/', { method: 'POST', body: JSON.stringify(schedule) }),
+  
+  updateClimateSchedule: (id: string, updates: any): Promise<any> => 
+    makeRequest<any>(`/climate-schedules/${id}/`, { method: 'PATCH', body: JSON.stringify(updates) }),
+  
+  deleteClimateSchedule: (id: string): Promise<void> => 
+    makeRequest<void>(`/climate-schedules/${id}/`, { method: 'DELETE' }),
+  
+  // Reports and Analytics
+  generateEnergyReport: (facilityId: string, reportType: string, startDate?: string, endDate?: string): Promise<any> => 
+    makeRequest<any>('/reports/energy/generate/', { 
+      method: 'POST', 
+      body: JSON.stringify({ facility_id: facilityId, report_type: reportType, start_date: startDate, end_date: endDate }) 
+    }),
+  
+  getWasteStatistics: (): Promise<any> => 
+    makeRequest<any>('/reports/waste/statistics/'),
+  
+  getClimateStatistics: (): Promise<any> => 
+    makeRequest<any>('/reports/climate/statistics/'),
+  
+  // Predictions
+  generateWastePrediction: (binId: string, daysAhead: number = 7): Promise<any[]> => 
+    makeRequest<any[]>('/predictions/waste/', { 
+      method: 'POST', 
+      body: JSON.stringify({ bin_id: binId, days_ahead: daysAhead }) 
+    }),
+  
+  // Driver Performance
+  getDriverPerformance: (truckId: string): Promise<any> => 
+    makeRequest<any>(`/drivers/${truckId}/performance/`),
 };

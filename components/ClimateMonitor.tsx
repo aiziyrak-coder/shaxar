@@ -18,6 +18,8 @@ interface HumidityConfig {
   roomMax: number;
   boilerMin: number;
   boilerMax: number;
+  tempMin: number;
+  tempMax: number;
 }
 
 type FacilityTypeFilter = 'ALL' | 'SCHOOL' | 'KINDERGARTEN' | 'HOSPITAL';
@@ -145,8 +147,34 @@ const ClimateMonitor: React.FC<ClimateMonitorProps> = ({ facilities, activeMFY =
   const [newRoomHumidity, setNewRoomHumidity] = useState(50);
   
   const [showSettings, setShowSettings] = useState(false);
-  const defaultConfig: HumidityConfig = { roomMin: 40, roomMax: 60, boilerMin: 30, boilerMax: 70 };
-  const [config, setConfig] = useState<HumidityConfig>(defaultConfig);
+  const defaultConfig: HumidityConfig = { 
+    roomMin: 40, 
+    roomMax: 60, 
+    boilerMin: 30, 
+    boilerMax: 70,
+    tempMin: 18,
+    tempMax: 24
+  };
+  
+  // Load config from localStorage on mount
+  const loadConfigFromStorage = (): HumidityConfig => {
+    try {
+      const stored = localStorage.getItem('climate_humidity_config');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Ensure all fields exist (for backwards compatibility)
+        return {
+          ...defaultConfig,
+          ...parsed
+        };
+      }
+    } catch (error) {
+      console.error('Error loading config from storage:', error);
+    }
+    return defaultConfig;
+  };
+  
+  const [config, setConfig] = useState<HumidityConfig>(loadConfigFromStorage());
   const [humidityConfig, setHumidityConfig] = useState<HumidityConfig>(config);
   
   // IoT Devices state
@@ -205,8 +233,25 @@ const ClimateMonitor: React.FC<ClimateMonitorProps> = ({ facilities, activeMFY =
   }, [showAddModal]);
 
   const openSettings = () => { setHumidityConfig(config); setShowSettings(true); };
-  const saveSettings = () => { setConfig(humidityConfig); setShowSettings(false); };
-  const resetSettings = () => { setHumidityConfig(defaultConfig); };
+  const saveSettings = () => { 
+    setConfig(humidityConfig); 
+    // Save to localStorage
+    try {
+      localStorage.setItem('climate_humidity_config', JSON.stringify(humidityConfig));
+    } catch (error) {
+      console.error('Error saving config to storage:', error);
+    }
+    setShowSettings(false); 
+  };
+  const resetSettings = () => { 
+    setHumidityConfig(defaultConfig);
+    // Clear from localStorage
+    try {
+      localStorage.removeItem('climate_humidity_config');
+    } catch (error) {
+      console.error('Error removing config from storage:', error);
+    }
+  };
   
   // Function to handle adding new IoT device
   const handleAddIoTDevice = async () => {
@@ -280,25 +325,44 @@ const ClimateMonitor: React.FC<ClimateMonitorProps> = ({ facilities, activeMFY =
     }
   };
 
+  // FIXED: Status calculation based on configured min/max values
+  // Returns 'OK' if value is within range, 'WARNING' if slightly out of range, 'CRITICAL' if far out of range
   const getStatusColor = (val: number, min: number, max: number) => {
+    // If value is within the configured range, it's OK
     if (val >= min && val <= max) return 'OK';
-    const diffMin = min - val;
-    const diffMax = val - max;
-    const deviation = Math.max(diffMin, diffMax);
+    
+    // Calculate how far the value is from the acceptable range
+    let deviation = 0;
+    if (val < min) {
+      deviation = min - val; // How much below minimum
+    } else if (val > max) {
+      deviation = val - max; // How much above maximum
+    }
+    
+    // Small deviation (1-3 units) is WARNING, larger deviation is CRITICAL
     if (deviation <= 3) return 'WARNING';
     return 'CRITICAL';
   };
 
-  const getTemperatureStatusColor = (val: number) => {
-    if (val >= 18 && val <= 24) return 'OK';
-    const deviation = Math.abs(21 - val); // 21 is optimal room temperature
+  // FIXED: Temperature status using the same min/max logic as humidity
+  // Default temperature range is 18-24°C if not specified
+  const getTemperatureStatusColor = (val: number, min: number = 18, max: number = 24) => {
+    if (val >= min && val <= max) return 'OK';
+    
+    let deviation = 0;
+    if (val < min) {
+      deviation = min - val;
+    } else if (val > max) {
+      deviation = val - max;
+    }
+    
     if (deviation <= 3) return 'WARNING';
     return 'CRITICAL';
   };
 
-  const getTemperatureDirection = (val: number) => {
-    if (val > 24) return 'HIGH';
-    if (val < 18) return 'LOW';
+  const getTemperatureDirection = (val: number, min: number = 18, max: number = 24) => {
+    if (val > max) return 'HIGH';
+    if (val < min) return 'LOW';
     return 'NORMAL';
   };
 
@@ -323,9 +387,9 @@ const ClimateMonitor: React.FC<ClimateMonitorProps> = ({ facilities, activeMFY =
           if (s === 'CRITICAL') hasCritical = true;
           if (s === 'WARNING') hasWarning = true;
           
-          // Check temperature status if available
+          // Check temperature status if available (using configured range)
           if (b.temperature !== undefined) {
-            const tempStatus = getTemperatureStatusColor(b.temperature);
+            const tempStatus = getTemperatureStatusColor(b.temperature, config.tempMin, config.tempMax);
             if (tempStatus === 'CRITICAL') hasCritical = true;
             if (tempStatus === 'WARNING') hasWarning = true;
           }
@@ -336,9 +400,9 @@ const ClimateMonitor: React.FC<ClimateMonitorProps> = ({ facilities, activeMFY =
                 if (rs === 'CRITICAL') hasCritical = true;
                 if (rs === 'WARNING') hasWarning = true;
                 
-                // Check room temperature status if available
+                // Check room temperature status if available (using configured range)
                 if (r.temperature !== undefined) {
-                  const roomTempStatus = getTemperatureStatusColor(r.temperature);
+                  const roomTempStatus = getTemperatureStatusColor(r.temperature, config.tempMin, config.tempMax);
                   if (roomTempStatus === 'CRITICAL') hasCritical = true;
                   if (roomTempStatus === 'WARNING') hasWarning = true;
                 }
@@ -1120,24 +1184,35 @@ const ClimateMonitor: React.FC<ClimateMonitorProps> = ({ facilities, activeMFY =
       {/* Settings Modal */}
       {showSettings && (
         <div className="absolute inset-0 z-[100] bg-slate-900/20 backdrop-blur-sm flex items-center justify-center p-6">
-           <div className="bg-white/95 backdrop-blur-xl p-5 rounded-[24px] shadow-2xl border border-white w-full max-w-sm">
-              <div className="flex justify-between items-center mb-5"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Settings size={18} className="text-blue-600" /> Normal Namlik</h3><button onClick={() => setShowSettings(false)} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-red-500"><X size={18} /></button></div>
+           <div className="bg-white/95 backdrop-blur-xl p-5 rounded-[24px] shadow-2xl border border-white w-full max-w-md">
+              <div className="flex justify-between items-center mb-5"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Settings size={18} className="text-blue-600" /> Ogohlantirish Sozlamalari</h3><button onClick={() => setShowSettings(false)} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-red-500"><X size={18} /></button></div>
               <div className="space-y-4">
                  <div className="bg-slate-50 p-4 rounded-[16px] border border-slate-100">
-                    <div className="flex items-center gap-2 mb-3 text-slate-700"><Building2 size={16} className="text-blue-500" /><span className="text-xs font-bold uppercase tracking-wide">Xonalar (%)</span></div>
+                    <div className="flex items-center gap-2 mb-3 text-slate-700"><Building2 size={16} className="text-blue-500" /><span className="text-xs font-bold uppercase tracking-wide">Xonalar Namlik (%)</span></div>
                     <div className="flex items-center gap-3">
                        <div className="flex-1"><label className="text-[9px] font-bold text-slate-400 ml-1">MIN</label><input type="number" value={humidityConfig.roomMin} onChange={(e) => setHumidityConfig({...humidityConfig, roomMin: Number(e.target.value)})} className="w-full bg-white border border-slate-200 rounded-[10px] px-3 py-2 text-sm font-bold text-center outline-none"/></div>
                        <div className="w-4 h-0.5 bg-slate-300 rounded-full mt-4"></div>
                        <div className="flex-1"><label className="text-[9px] font-bold text-slate-400 ml-1">MAX</label><input type="number" value={humidityConfig.roomMax} onChange={(e) => setHumidityConfig({...humidityConfig, roomMax: Number(e.target.value)})} className="w-full bg-white border border-slate-200 rounded-[10px] px-3 py-2 text-sm font-bold text-center outline-none"/></div>
                     </div>
+                    <p className="text-[9px] text-slate-400 mt-2">Namlik {humidityConfig.roomMin}% dan past yoki {humidityConfig.roomMax}% dan yuqori bo'lsa ogohlantirish beriladi</p>
                  </div>
                  <div className="bg-slate-50 p-4 rounded-[16px] border border-slate-100">
-                    <div className="flex items-center gap-2 mb-3 text-slate-700"><Flame size={16} className="text-orange-500" /><span className="text-xs font-bold uppercase tracking-wide">Qozonxonalar (%)</span></div>
+                    <div className="flex items-center gap-2 mb-3 text-slate-700"><Flame size={16} className="text-orange-500" /><span className="text-xs font-bold uppercase tracking-wide">Qozonxonalar Namlik (%)</span></div>
                     <div className="flex items-center gap-3">
                        <div className="flex-1"><label className="text-[9px] font-bold text-slate-400 ml-1">MIN</label><input type="number" value={humidityConfig.boilerMin} onChange={(e) => setHumidityConfig({...humidityConfig, boilerMin: Number(e.target.value)})} className="w-full bg-white border border-slate-200 rounded-[10px] px-3 py-2 text-sm font-bold text-center outline-none"/></div>
                        <div className="w-4 h-0.5 bg-slate-300 rounded-full mt-4"></div>
                        <div className="flex-1"><label className="text-[9px] font-bold text-slate-400 ml-1">MAX</label><input type="number" value={humidityConfig.boilerMax} onChange={(e) => setHumidityConfig({...humidityConfig, boilerMax: Number(e.target.value)})} className="w-full bg-white border border-slate-200 rounded-[10px] px-3 py-2 text-sm font-bold text-center outline-none"/></div>
                     </div>
+                    <p className="text-[9px] text-slate-400 mt-2">Namlik {humidityConfig.boilerMin}% dan past yoki {humidityConfig.boilerMax}% dan yuqori bo'lsa ogohlantirish beriladi</p>
+                 </div>
+                 <div className="bg-blue-50 p-4 rounded-[16px] border border-blue-100">
+                    <div className="flex items-center gap-2 mb-3 text-slate-700"><Thermometer size={16} className="text-blue-600" /><span className="text-xs font-bold uppercase tracking-wide">Harorat (°C)</span></div>
+                    <div className="flex items-center gap-3">
+                       <div className="flex-1"><label className="text-[9px] font-bold text-slate-400 ml-1">MIN</label><input type="number" value={humidityConfig.tempMin} onChange={(e) => setHumidityConfig({...humidityConfig, tempMin: Number(e.target.value)})} className="w-full bg-white border border-slate-200 rounded-[10px] px-3 py-2 text-sm font-bold text-center outline-none"/></div>
+                       <div className="w-4 h-0.5 bg-slate-300 rounded-full mt-4"></div>
+                       <div className="flex-1"><label className="text-[9px] font-bold text-slate-400 ml-1">MAX</label><input type="number" value={humidityConfig.tempMax} onChange={(e) => setHumidityConfig({...humidityConfig, tempMax: Number(e.target.value)})} className="w-full bg-white border border-slate-200 rounded-[10px] px-3 py-2 text-sm font-bold text-center outline-none"/></div>
+                    </div>
+                    <p className="text-[9px] text-slate-400 mt-2">Harorat {humidityConfig.tempMin}°C dan past yoki {humidityConfig.tempMax}°C dan yuqori bo'lsa ogohlantirish beriladi</p>
                  </div>
               </div>
               <div className="mt-5 space-y-2">

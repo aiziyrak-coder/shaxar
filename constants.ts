@@ -5,7 +5,7 @@
  */
 
 import { MoistureSensor, SensorStatus, Facility, WasteBin, Truck, Weather, WeatherForecast, Notification, ChartData, ReportEntry, DeviceHealth, Region, Coordinate, AirSensor, SOSColumn, EcoViolation, ConstructionSite, LightPole, Bus, CallRequest, RequestCategory, ModuleDefinition, Organization } from './types';
-import { LayoutGrid, PieChart, Droplets, ThermometerSun, Trash, Wind, HardHat, Eye, Lightbulb, ShieldAlert, Bus as BusIcon, PhoneCall } from 'lucide-react';
+import { LayoutGrid, PieChart, Droplets, ThermometerSun, Trash, Wind, HardHat, Eye, Lightbulb, ShieldAlert, Bus as BusIcon, PhoneCall, Target, Route, TrendingUp, Bell, Calendar, Zap, Activity, FileText, Settings } from 'lucide-react';
 
 // --- AVAILABLE MODULES DEFINITION ---
 export const ALL_MODULES: ModuleDefinition[] = [
@@ -21,6 +21,17 @@ export const ALL_MODULES: ModuleDefinition[] = [
     { id: 'SECURITY', label: 'Xavfsizlik', icon: ShieldAlert, description: "SOS ustunlar va jamoat xavfsizligi" },
     { id: 'TRANSPORT', label: 'Transport', icon: BusIcon, description: "Jamoat transporti va tirbandlik tahlili" },
     { id: 'CALL_CENTER', label: 'Murojaatlar', icon: PhoneCall, description: "AI Call Center va fuqarolar murojaati" },
+    // NEW ENHANCED MODULES
+    { id: 'WASTE_REPORTS', label: 'Chiqindi Hisobotlar', icon: FileText, description: "Chiqindi boshqaruv statistikasi va hisobotlar" },
+    { id: 'WASTE_TASKS', label: 'Vazifalar', icon: Target, description: "Avtomatik vazifa tayinlash va monitoring" },
+    { id: 'WASTE_ROUTES', label: 'Marshrutlar', icon: Route, description: "Optimal marshrut rejalashtirish" },
+    { id: 'WASTE_PREDICTION', label: 'Prognoz', icon: TrendingUp, description: "AI yordamida to'liish vaqtini bashorat qilish" },
+    { id: 'CLIMATE_REALTIME', label: 'Real-Time', icon: Activity, description: "24 soatlik jonli grafik va monitoring" },
+    { id: 'CLIMATE_SCHEDULER', label: 'Jadval', icon: Calendar, description: "Avtomatik yoqish/o'chirish jadvali" },
+    { id: 'CLIMATE_AUTO', label: 'Avto-Nazorat', icon: Zap, description: "Aqlli avtomatik boshqaruv tizimi" },
+    { id: 'CLIMATE_ENERGY', label: 'Energiya', icon: Lightbulb, description: "Energiya tahlili va tejash tavsiyalari" },
+    { id: 'CLIMATE_REPORTS', label: 'Issiqlik Hisobotlar', icon: FileText, description: "Oylik/yillik energiya hisobotlari" },
+    { id: 'ALERTS', label: 'Ogohlantirishlar', icon: Bell, description: "SMS/Telegram avtomatik xabarnoma" },
 ];
 
 // --- MOCK ORGANIZATIONS (Database Simulation) ---

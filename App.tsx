@@ -19,6 +19,18 @@ import AICallCenter from './components/AICallCenter';
 import CitizenPortal from './components/CitizenPortal';
 import DriverDashboard from './components/DriverDashboard';
 import LockedModule from './components/LockedModule';
+// NEW ENHANCED COMPONENTS
+import WasteReports from './components/WasteReports';
+import TaskAssignment from './components/TaskAssignment';
+import RouteOptimization from './components/RouteOptimization';
+import WastePrediction from './components/WastePrediction';
+import ClimateRealTimeGraph from './components/ClimateRealTimeGraph';
+import ClimateScheduler from './components/ClimateScheduler';
+import ClimateAutoControl from './components/ClimateAutoControl';
+import EnergyAnalysis from './components/EnergyAnalysis';
+import ClimateReports from './components/ClimateReports';
+import AlertSystem from './components/AlertSystem';
+import ClimateAlerts from './components/ClimateAlerts';
 import { Radio, Wind, CheckSquare, ShieldCheck, ChevronRight, Siren, LogOut, Truck as TruckIcon, HardHat, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -805,6 +817,28 @@ const App: React.FC = () => {
                 {activeTab === 'AIR' && (enabledModules.includes('AIR') ? (<motion.div key="air" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full ios-glass rounded-[24px] overflow-hidden shadow-lg border border-white/50"><AirQualityMonitor sensors={airSensors} activeMFY={selectedMfy} /></motion.div>) : (<motion.div key="air-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Havo" /></motion.div>))}
                 {activeTab === 'TRANSPORT' && (enabledModules.includes('TRANSPORT') ? (<motion.div key="transport" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full ios-glass rounded-[24px] overflow-hidden shadow-lg border border-white/50"><PublicTransport buses={buses} center={session.district.center} /></motion.div>) : (<motion.div key="transport-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Transport" /></motion.div>))}
                 {activeTab === 'CALL_CENTER' && (enabledModules.includes('CALL_CENTER') ? (<motion.div key="call" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full ios-glass rounded-[24px] overflow-hidden shadow-lg border border-white/50"><AICallCenter /></motion.div>) : (<motion.div key="call-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Murojaatlar" /></motion.div>))}
+                
+                {/* NEW ENHANCED WASTE MODULES */}
+                {activeTab === 'WASTE_REPORTS' && (enabledModules.includes('WASTE_REPORTS') ? (<motion.div key="waste-reports" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><WasteReports bins={bins} trucks={trucks} /></motion.div>) : (<motion.div key="waste-reports-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Chiqindi Hisobotlar" /></motion.div>))}
+                
+                {activeTab === 'WASTE_TASKS' && (enabledModules.includes('WASTE_TASKS') ? (<motion.div key="waste-tasks" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><TaskAssignment bins={bins} trucks={trucks} /></motion.div>) : (<motion.div key="waste-tasks-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Vazifalar" /></motion.div>))}
+                
+                {activeTab === 'WASTE_ROUTES' && (enabledModules.includes('WASTE_ROUTES') ? (<motion.div key="waste-routes" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><RouteOptimization bins={bins} trucks={trucks} districtCenter={session.district.center} /></motion.div>) : (<motion.div key="waste-routes-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Marshrutlar" /></motion.div>))}
+                
+                {activeTab === 'WASTE_PREDICTION' && (enabledModules.includes('WASTE_PREDICTION') ? (<motion.div key="waste-prediction" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><WastePrediction bins={bins} /></motion.div>) : (<motion.div key="waste-prediction-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Prognoz" /></motion.div>))}
+                
+                {/* NEW ENHANCED CLIMATE MODULES */}
+                {activeTab === 'CLIMATE_REALTIME' && (enabledModules.includes('CLIMATE_REALTIME') ? (<motion.div key="climate-realtime" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><ClimateRealTimeGraph rooms={rooms} boilers={boilers} /></motion.div>) : (<motion.div key="climate-realtime-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Real-Time" /></motion.div>))}
+                
+                {activeTab === 'CLIMATE_SCHEDULER' && (enabledModules.includes('CLIMATE_SCHEDULER') ? (<motion.div key="climate-scheduler" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><ClimateScheduler facilities={facilities} /></motion.div>) : (<motion.div key="climate-scheduler-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Jadval" /></motion.div>))}
+                
+                {activeTab === 'CLIMATE_AUTO' && (enabledModules.includes('CLIMATE_AUTO') ? (<motion.div key="climate-auto" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><ClimateAutoControl facilities={facilities} /></motion.div>) : (<motion.div key="climate-auto-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Avto-Nazorat" /></motion.div>))}
+                
+                {activeTab === 'CLIMATE_ENERGY' && (enabledModules.includes('CLIMATE_ENERGY') ? (<motion.div key="climate-energy" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><EnergyAnalysis facilities={facilities} /></motion.div>) : (<motion.div key="climate-energy-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Energiya" /></motion.div>))}
+                
+                {activeTab === 'CLIMATE_REPORTS' && (enabledModules.includes('CLIMATE_REPORTS') ? (<motion.div key="climate-reports" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><ClimateReports facilities={facilities} /></motion.div>) : (<motion.div key="climate-reports-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Hisobotlar" /></motion.div>))}
+                
+                {activeTab === 'ALERTS' && (enabledModules.includes('ALERTS') ? (<motion.div key="alerts" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><ClimateAlerts facilities={facilities} /></motion.div>) : (<motion.div key="alerts-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Ogohlantirishlar" /></motion.div>))}
             </AnimatePresence>
           </main>
       </div>
