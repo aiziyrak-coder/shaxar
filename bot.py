@@ -321,18 +321,19 @@ class WasteBinBot:
                 'Content-Type': 'application/json',
             }
             
-            # Get API key from environment or use default
+            # Get API key from environment
             api_key = os.getenv('GEMINI_API_KEY', 'YOUR_API_KEY_HERE')
             if api_key == 'YOUR_API_KEY_HERE':
-                # If no API key is set, return a basic response
+                # CRITICAL: If no API key, return error instead of fake data
+                logger.error("❌ GEMINI_API_KEY not set - cannot perform REAL AI analysis")
                 return {
-                    'isWasteBin': True,
-                    'isFull': True,
-                    'fillLevel': 90,
-                    'confidence': 70,
-                    'notes': 'API kaliti ornatiilmagan, oddiy tahlil amalga oshirildi',
-                    'detectedObjects': ['waste bin', 'plastic bags'],
-                    'suggestions': 'Konteyner hozir to\'la, yuklab olish kerak'
+                    'isWasteBin': False,
+                    'isFull': False,
+                    'fillLevel': 0,
+                    'confidence': 0,
+                    'notes': '❌ XATOLIK: GEMINI_API_KEY sozlanmagan. Real AI tahlil qilish uchun API kaliti kerak. Iltimos, GEMINI_API_KEY environment variable\'ni sozlang.',
+                    'detectedObjects': [],
+                    'suggestions': 'GEMINI_API_KEY sozlang va qayta urinib ko\'ring'
                 }
             
             ai_url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key={api_key}'
