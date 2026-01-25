@@ -87,7 +87,10 @@ const App: React.FC = () => {
     const loadData = async () => {
       if (session) {
         setLoading(true);
-        console.log('Loading data for session:', session);
+        // Only log in development mode
+        if (import.meta.env.DEV) {
+          console.log('Loading data for session:', session);
+        }
         try {
           const [
             loadedSensors,
@@ -117,18 +120,23 @@ const App: React.FC = () => {
             DB.getIoTDevices()
           ]);
           
-          setSensors(loadedSensors);
-          setFacilities(loadedFacilities);
-          setBins(loadedBins); // Set bins from API
-          setTrucks(loadedTrucks); // Set trucks from API
-          setAirSensors(loadedAirSensors);
-          setSosColumns(loadedSosColumns);
-          setLightPoles(loadedLightPoles);
-          setEcoViolations(loadedEcoViolations);
-          setBuses(loadedBuses);
-          setRooms(loadedRooms);
-          setBoilers(loadedBoilers);
-          setIoTDevices(loadedIoTDevices);
+          // Remove duplicates before setting state
+          const deduplicateById = <T extends { id: string }>(items: T[]): T[] => {
+            return Array.from(new Map(items.map(item => [item.id, item])).values());
+          };
+          
+          setSensors(deduplicateById(loadedSensors));
+          setFacilities(deduplicateById(loadedFacilities));
+          setBins(deduplicateById(loadedBins)); // Set bins from API (deduplicated)
+          setTrucks(deduplicateById(loadedTrucks)); // Set trucks from API (deduplicated)
+          setAirSensors(deduplicateById(loadedAirSensors));
+          setSosColumns(deduplicateById(loadedSosColumns));
+          setLightPoles(deduplicateById(loadedLightPoles));
+          setEcoViolations(deduplicateById(loadedEcoViolations));
+          setBuses(deduplicateById(loadedBuses));
+          setRooms(deduplicateById(loadedRooms));
+          setBoilers(deduplicateById(loadedBoilers));
+          setIoTDevices(deduplicateById(loadedIoTDevices));
           
           setAvailableMfys(GET_MFYS(session.district.name));
         } catch (error) {
@@ -147,13 +155,26 @@ const App: React.FC = () => {
     loadData();
   }, [session]);
 
-  // Real-time polling for all data (every 30 seconds)
+  // Real-time polling for all data (every 5 seconds)
   useEffect(() => {
     if (!session) return;
     
+    // Prevent multiple polling intervals
+    let isPolling = false;
+    
     const pollData = async () => {
+      // Prevent concurrent polling
+      if (isPolling) {
+        console.log('⏸️ Polling already in progress, skipping...');
+        return;
+      }
+      
+      isPolling = true;
       try {
-        console.log('🔄 Refreshing data...');
+        // Only log in development mode
+        if (import.meta.env.DEV) {
+          console.log('🔄 Refreshing data...');
+        }
         
         // Poll all active module data
         const [
@@ -172,33 +193,72 @@ const App: React.FC = () => {
           DB.getIoTDevices()
         ]);
         
-        // Update state
-        setBins(updatedBins);
-        setTrucks(updatedTrucks);
-        setFacilities(updatedFacilities);
-        setRooms(updatedRooms);
-        setBoilers(updatedBoilers);
-        setIoTDevices(updatedIoTDevices);
+        // CRITICAL: Remove duplicates before updating state to prevent showing 50+ bins when backend has 18
+        const deduplicateById = <T extends { id: string }>(items: T[]): T[] => {
+          return Array.from(new Map(items.map(item => [item.id, item])).values());
+        };
+        
+        const uniqueBins = deduplicateById(updatedBins);
+        const uniqueTrucks = deduplicateById(updatedTrucks);
+        const uniqueFacilities = deduplicateById(updatedFacilities);
+        const uniqueRooms = deduplicateById(updatedRooms);
+        const uniqueBoilers = deduplicateById(updatedBoilers);
+        const uniqueIoTDevices = deduplicateById(updatedIoTDevices);
+        
+        // Log if duplicates were found
+        if (updatedBins.length !== uniqueBins.length) {
+          console.warn(`⚠️ Duplicate bins removed: ${updatedBins.length} → ${uniqueBins.length}`);
+        }
+        
+        // Update state with deduplicated data
+        setBins(uniqueBins);
+        setTrucks(uniqueTrucks);
+        setFacilities(uniqueFacilities);
+        setRooms(uniqueRooms);
+        setBoilers(uniqueBoilers);
+        setIoTDevices(uniqueIoTDevices);
         
         const timestamp = new Date().toLocaleTimeString('uz-UZ');
-        console.log(`✅ ${timestamp} - Ma'lumotlar yangilandi:`, {
-          bins: updatedBins.length,
-          trucks: updatedTrucks.length,
-          facilities: updatedFacilities.length,
-          rooms: updatedRooms.length,
-          boilers: updatedBoilers.length,
-          iot: updatedIoTDevices.length
-        });
+        // Only log in development mode
+        if (import.meta.env.DEV) {
+          console.log(`✅ ${timestamp} - Ma'lumotlar yangilandi:`, {
+            bins: uniqueBins.length,
+            trucks: uniqueTrucks.length,
+            facilities: uniqueFacilities.length,
+            rooms: uniqueRooms.length,
+            boilers: uniqueBoilers.length,
+            iot: uniqueIoTDevices.length
+          });
+        }
       } catch (error) {
-        console.error('Error polling data:', error);
+        console.error('❌ Error polling data:', error);
+        // If it's a 401 error, clear session
+        if (error instanceof Error && error.message.includes('401')) {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('organizationId');
+          localStorage.removeItem('userSession');
+          setSession(null);
+        }
+      } finally {
+        isPolling = false;
       }
     };
     
     // Initial poll after 2 seconds
-    const initialTimeout = setTimeout(pollData, 2000);
+    const initialTimeout = setTimeout(() => {
+      if (session) {
+        pollData();
+      }
+    }, 2000);
     
     // Then poll every 5 seconds (real-time updates!)
-    const interval = setInterval(pollData, 5000);
+    // Increase interval if too many requests
+    const pollInterval = 5000; // 5 seconds
+    const interval = setInterval(() => {
+      if (session && !isPolling) {
+        pollData();
+      }
+    }, pollInterval);
     
     return () => {
       clearTimeout(initialTimeout);
@@ -209,8 +269,10 @@ const App: React.FC = () => {
   // Sync back to DB when state changes - updated to handle async
   useEffect(() => { 
     if(bins.length) {
+      // Remove duplicates before saving to localStorage
+      const uniqueBins = Array.from(new Map(bins.map(bin => [bin.id, bin])).values());
       // Only save to localStorage, not to API to prevent continuous requests
-      localStorage.setItem('smartcity_bins', JSON.stringify(bins));
+      localStorage.setItem('smartcity_bins', JSON.stringify(uniqueBins));
     }
   }, [bins]);
   
@@ -349,29 +411,44 @@ const App: React.FC = () => {
     // Check for authentication before updating
     const token = localStorage.getItem('authToken');
     if (!token) {
-      // If no token, update locally only
-      setBins(prev => prev.map(b => b.id === id ? { ...b, ...binUpdates } : b));
+      // If no token, update locally only (deduplicated)
+      setBins(prev => {
+        const updated = prev.map(b => b.id === id ? { ...b, ...binUpdates } : b);
+        // Remove duplicates
+        return Array.from(new Map(updated.map(b => [b.id, b])).values());
+      });
       return;
     }
     
     try {
-      // Update locally first
-      setBins(prev => prev.map(b => b.id === id ? { ...b, ...binUpdates } : b));
+      // Update locally first (deduplicated)
+      setBins(prev => {
+        const updated = prev.map(b => b.id === id ? { ...b, ...binUpdates } : b);
+        // Remove duplicates
+        return Array.from(new Map(updated.map(b => [b.id, b])).values());
+      });
+      
       // Then try to save to API
       const binToUpdate = bins.find(b => b.id === id);
       if (binToUpdate) {
         const updatedBin = { ...binToUpdate, ...binUpdates };
         const savedBin = await DB.saveBin(updatedBin);
-        // Update the local state with the server response
-        setBins(prev => prev.map(b => b.id === savedBin.id ? savedBin : b));
+        // Update the local state with the server response (deduplicated)
+        setBins(prev => {
+          const updated = prev.map(b => b.id === savedBin.id ? savedBin : b);
+          // Remove duplicates
+          return Array.from(new Map(updated.map(b => [b.id, b])).values());
+        });
       }
     } catch (error) {
-      console.error('Error updating bin:', error);
+      console.error('❌ Error updating bin:', error);
       // Show user-friendly error message
       alert('Konteynerni yangilashda xatolik yuz berdi. Iltimos, qaytadan urinib koring.');
       // If API update fails, revert to local state or just keep the local update
       if (error instanceof Error && error.message.includes('401')) {
         localStorage.removeItem('authToken');
+        localStorage.removeItem('organizationId');
+        localStorage.removeItem('userSession');
       }
     }
   };
@@ -449,7 +526,13 @@ const App: React.FC = () => {
 
   if (!session) {
     return <AuthNavigation onLogin={(newSession) => {
-      console.log('✅ Login callback received, session:', newSession);
+      // Only log in development mode
+      const isDev = import.meta.env?.DEV || process.env.NODE_ENV === 'development';
+      
+      if (isDev) {
+        console.log('✅ Login callback received, session:', newSession);
+      }
+      
       if (!newSession) {
         console.error('❌ Session is null in callback!');
         return;
@@ -462,7 +545,11 @@ const App: React.FC = () => {
         console.error('❌ Session district is missing!');
         return;
       }
-      console.log('✅ Setting session...');
+      
+      if (isDev) {
+        console.log('✅ Setting session...');
+      }
+      
       setSession(newSession);
       // Store session and organization ID when session is set
       if (newSession && newSession.user && newSession.user.organizationId) {

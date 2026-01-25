@@ -58,8 +58,11 @@ class AuthService {
         password: credentials.password,
       };
 
-      console.log('🔐 Sending login request to:', `${this.baseUrl}/auth/login/`);
-      console.log('📤 Login data:', { login: loginData.login, password: '***' });
+      // Only log in development mode
+      if (import.meta.env?.DEV || process.env.NODE_ENV === 'development') {
+        console.log('🔐 Sending login request to:', `${this.baseUrl}/auth/login/`);
+        console.log('📤 Login data:', { login: loginData.login, password: '***' });
+      }
 
       // Get CSRF token first if needed
       const csrfToken = this.getCsrfToken();
@@ -109,7 +112,10 @@ class AuthService {
       }
 
       // If we get here, the request was successful
-      console.log('✅ Login successful, data:', data);
+      // Only log in development mode
+      if (import.meta.env?.DEV || process.env.NODE_ENV === 'development') {
+        console.log('✅ Login successful');
+      }
 
       if (data.token) {
         // Store the token in localStorage
