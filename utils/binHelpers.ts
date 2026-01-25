@@ -65,53 +65,22 @@ export function getCameraStatusMessage(bin: WasteBin): string {
 }
 
 /**
- * Deduplicate bins by ID and address only
- * Location-based deduplication is too aggressive and removes valid bins
+ * Deduplicate bins by ID only
+ * Address-based deduplication is too aggressive and removes valid bins
+ * If there are truly duplicate bins, they should be cleaned at the database level
  * @param bins - Array of bins to deduplicate
  * @returns Deduplicated array
  */
 export function deduplicateBins(bins: WasteBin[]): WasteBin[] {
-  // First, deduplicate by ID (primary key) - this is the most important
+  // Deduplicate by ID (primary key) only
+  // If same ID appears multiple times, keep the last one (most recent)
   const uniqueById = new Map<string, WasteBin>();
-  const uniqueByAddress = new Map<string, WasteBin>();
   
   for (const bin of bins) {
     if (!bin || !bin.id) continue;
     
-    // Deduplicate by ID - if same ID, keep the latest one
-    if (!uniqueById.has(bin.id)) {
-      uniqueById.set(bin.id, bin);
-      
-      // Also track by address to catch duplicates with different IDs but same address
-      // Only if address is provided and not empty
-      if (bin.address && bin.address.trim()) {
-        const addressKey = bin.address.trim().toLowerCase();
-        if (!uniqueByAddress.has(addressKey)) {
-          uniqueByAddress.set(addressKey, bin);
-        } else {
-          // If we already have a bin with this exact address, keep the one with better data
-          const existing = uniqueByAddress.get(addressKey)!;
-          // Only replace if new bin has significantly better data
-          const newBinHasData = bin.imageUrl || bin.lastAnalysis || bin.fillLevel !== undefined;
-          const existingHasData = existing.imageUrl || existing.lastAnalysis || existing.fillLevel !== undefined;
-          
-          if (newBinHasData && !existingHasData) {
-            // New bin has data, existing doesn't - replace
-            uniqueByAddress.set(addressKey, bin);
-            uniqueById.set(bin.id, bin);
-            // Remove old bin if it has different ID
-            if (existing.id !== bin.id) {
-              uniqueById.delete(existing.id);
-            }
-          } else if (existing.id === bin.id) {
-            // Same ID, just update
-            uniqueById.set(bin.id, bin);
-            uniqueByAddress.set(addressKey, bin);
-          }
-          // Otherwise, keep existing bin (don't add duplicate)
-        }
-      }
-    }
+    // Always keep unique IDs - if same ID appears, replace with latest
+    uniqueById.set(bin.id, bin);
   }
   
   return Array.from(uniqueById.values());
