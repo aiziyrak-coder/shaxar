@@ -33,6 +33,7 @@ import AlertSystem from './components/AlertSystem';
 import ClimateAlerts from './components/ClimateAlerts';
 import { Radio, Wind, CheckSquare, ShieldCheck, ChevronRight, Siren, LogOut, Truck as TruckIcon, HardHat, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { deduplicateBins, addOrUpdateBin } from './utils/binHelpers';
 
 // Updated Static Micro Footer
 const FooterInfo = () => (
@@ -127,7 +128,7 @@ const App: React.FC = () => {
           
           setSensors(deduplicateById(loadedSensors));
           setFacilities(deduplicateById(loadedFacilities));
-          setBins(deduplicateById(loadedBins)); // Set bins from API (deduplicated)
+          setBins(deduplicateBins(loadedBins)); // Set bins from API (deduplicated)
           setTrucks(deduplicateById(loadedTrucks)); // Set trucks from API (deduplicated)
           setAirSensors(deduplicateById(loadedAirSensors));
           setSosColumns(deduplicateById(loadedSosColumns));
@@ -210,8 +211,8 @@ const App: React.FC = () => {
           console.warn(`⚠️ Duplicate bins removed: ${updatedBins.length} → ${uniqueBins.length}`);
         }
         
-        // Update state with deduplicated data
-        setBins(uniqueBins);
+        // Update state with deduplicated data (using helper for consistency)
+        setBins(deduplicateBins(uniqueBins));
         setTrucks(uniqueTrucks);
         setFacilities(uniqueFacilities);
         setRooms(uniqueRooms);
@@ -269,8 +270,8 @@ const App: React.FC = () => {
   // Sync back to DB when state changes - updated to handle async
   useEffect(() => { 
     if(bins.length) {
-      // Remove duplicates before saving to localStorage
-      const uniqueBins = Array.from(new Map(bins.map(bin => [bin.id, bin])).values());
+      // Remove duplicates before saving to localStorage using helper
+      const uniqueBins = deduplicateBins(bins);
       // Only save to localStorage, not to API to prevent continuous requests
       localStorage.setItem('smartcity_bins', JSON.stringify(uniqueBins));
     }
@@ -424,8 +425,8 @@ const App: React.FC = () => {
       // Update locally first (deduplicated)
       setBins(prev => {
         const updated = prev.map(b => b.id === id ? { ...b, ...binUpdates } : b);
-        // Remove duplicates
-        return Array.from(new Map(updated.map(b => [b.id, b])).values());
+        // Remove duplicates using helper
+        return deduplicateBins(updated);
       });
       
       // Then try to save to API
@@ -434,11 +435,7 @@ const App: React.FC = () => {
         const updatedBin = { ...binToUpdate, ...binUpdates };
         const savedBin = await DB.saveBin(updatedBin);
         // Update the local state with the server response (deduplicated)
-        setBins(prev => {
-          const updated = prev.map(b => b.id === savedBin.id ? savedBin : b);
-          // Remove duplicates
-          return Array.from(new Map(updated.map(b => [b.id, b])).values());
-        });
+        setBins(prev => addOrUpdateBin(prev, savedBin));
       }
     } catch (error) {
       console.error('❌ Error updating bin:', error);
@@ -738,12 +735,13 @@ const App: React.FC = () => {
                         <div className={`${showWasteWidget ? (showClimateWidget ? 'col-span-6' : 'col-span-8') : (showClimateWidget ? 'col-span-9' : 'col-span-12')} h-full flex flex-col gap-2 overflow-hidden`}>
                             <div className="flex-1 ios-glass rounded-[24px] overflow-hidden shadow-lg border-2 border-white/50 group bg-slate-100 relative">
                                 <MoistureMap sensors={sensors} wasteBins={bins} trucks={trucks} airSensors={airSensors} sosColumns={sosColumns} activeMFY={selectedMfy} onAddSensor={(s) => setSensors(prev => [...prev, s])} onDeleteSensor={(id) => setSensors(prev => prev.filter(s => s.id !== id))} onAddBin={async (b) => {
-                                    setBins(prev => [b, ...prev]);
+                                    // CRITICAL: Use deduplication helper to prevent duplicates
+                                    setBins(prev => addOrUpdateBin(prev, b));
                                     // Save to API
                                     try {
                                         const savedBin = await DB.saveBin(b);
-                                        // Update the local state with the server response
-                                        setBins(prev => [savedBin, ...prev.filter(bin => bin.id !== savedBin.id)]);
+                                        // Update the local state with the server response (deduplicated)
+                                        setBins(prev => addOrUpdateBin(prev, savedBin));
                                     } catch (error) {
                                         console.error('Error saving bin to API:', error);
                                         // Show user-friendly error message
@@ -782,12 +780,13 @@ const App: React.FC = () => {
                                     activeMFY={selectedMfy} 
                                     onUpdateBin={updateBin} // Use the updated function
                                     onAddBin={async (b) => {
-                                        setBins(prev => [b, ...prev]);
+                                        // CRITICAL: Use deduplication helper to prevent duplicates
+                                        setBins(prev => addOrUpdateBin(prev, b));
                                         // Save to API
                                         try {
                                             const savedBin = await DB.saveBin(b);
-                                            // Update the local state with the server response
-                                            setBins(prev => [savedBin, ...prev.filter(bin => bin.id !== savedBin.id)]);
+                                            // Update the local state with the server response (deduplicated)
+                                            setBins(prev => addOrUpdateBin(prev, savedBin));
                                         } catch (error) {
                                             console.error('Error saving bin to API:', error);
                                             // Show user-friendly error message
@@ -834,12 +833,13 @@ const App: React.FC = () => {
 
                 {activeTab === 'ANALYTICS' && (enabledModules.includes('ANALYTICS') ? (<motion.div key="analytics" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} transition={{ duration: 0.3 }} className="h-full ios-glass rounded-[24px] overflow-hidden shadow-lg border border-white/50"><AnalyticsView activeMFY={selectedMfy} /></motion.div>) : (<motion.div key="analytics-locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full"><LockedModule moduleName="Tahlil" /></motion.div>))}
                 {activeTab === 'MOISTURE' && (enabledModules.includes('MOISTURE') ? (<motion.div key="moisture" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full ios-glass rounded-[24px] overflow-hidden shadow-lg border border-white/50 bg-slate-100"><MoistureMap sensors={sensors} wasteBins={bins} trucks={trucks} airSensors={airSensors} sosColumns={sosColumns} activeMFY={selectedMfy} onAddSensor={(s) => setSensors(prev => [...prev, s])} onDeleteSensor={(id) => setSensors(prev => prev.filter(s => s.id !== id))} onAddBin={async (b) => {
-                                    setBins(prev => [b, ...prev]);
+                                    // CRITICAL: Use deduplication helper to prevent duplicates
+                                    setBins(prev => addOrUpdateBin(prev, b));
                                     // Save to API
                                     try {
                                         const savedBin = await DB.saveBin(b);
-                                        // Update the local state with the server response
-                                        setBins(prev => [savedBin, ...prev.filter(bin => bin.id !== savedBin.id)]);
+                                        // Update the local state with the server response (deduplicated)
+                                        setBins(prev => addOrUpdateBin(prev, savedBin));
                                     } catch (error) {
                                         console.error('Error saving bin to API:', error);
                                         // Show user-friendly error message
@@ -881,10 +881,13 @@ const App: React.FC = () => {
                                     }
                                 }} cityName={session.district.name} /></motion.div>)}
                 {activeTab === 'WASTE' && enabledModules.includes('WASTE') && (<motion.div key="waste" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="h-full ios-glass rounded-[24px] overflow-hidden shadow-lg border border-white/50"><WasteManagement bins={bins} activeMFY={selectedMfy} trucks={trucks} onUpdateBin={updateBin} onAddBin={async (b) => {
-                                        setBins(prev => [b, ...prev]);
+                                        // CRITICAL: Use deduplication helper to prevent duplicates
+                                        setBins(prev => addOrUpdateBin(prev, b));
                                         // Save to API
                                         try {
-                                            await DB.saveBin(b);
+                                            const savedBin = await DB.saveBin(b);
+                                            // Update the local state with the server response (deduplicated)
+                                            setBins(prev => addOrUpdateBin(prev, savedBin));
                                         } catch (error) {
                                             console.error('Error saving bin to API:', error);
                                         }
