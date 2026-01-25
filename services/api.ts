@@ -105,7 +105,10 @@ const makeRequest = async <T>(endpoint: string, options: RequestInit = {}): Prom
     if (!response.ok) {
       // If it's a 401 error, remove the invalid token
       if (response.status === 401) {
+        console.warn('⚠️ Authentication failed (401), removing token');
         localStorage.removeItem('authToken');
+        localStorage.removeItem('organizationId');
+        localStorage.removeItem('userSession');
       }
 
       // Try to read response body for better diagnostics
@@ -122,15 +125,29 @@ const makeRequest = async <T>(endpoint: string, options: RequestInit = {}): Prom
         try { parsedBody = JSON.parse(respText); } catch (e) { parsedBody = respText; }
       }
 
+      // Log error details for debugging
+      console.error(`❌ API Error [${response.status}]:`, {
+        url,
+        method: config.method || 'GET',
+        error: parsedBody || respText
+      });
+
       const err: any = new Error(`HTTP error! status: ${response.status}` + (respText ? ` - ${respText}` : ''));
       err.status = response.status;
       err.body = parsedBody;
       throw err;
     }
     
-    return await response.json();
+    const data = await response.json();
+    
+    // Log successful requests in development
+    if (import.meta.env.DEV) {
+      console.log(`✅ API Success [${response.status}]:`, url);
+    }
+    
+    return data;
   } catch (error) {
-    console.error('API request error:', error);
+    console.error('❌ API request error:', error);
     throw error;
   }
 };
@@ -267,8 +284,29 @@ export const ApiService = {
 
   // Waste Bins
   getWasteBins: async (): Promise<WasteBin[]> => {
-    const bins = await makeRequest<any[]>('/waste-bins/');
-    return bins.map(mapWasteBin);
+    try {
+      const bins = await makeRequest<any[]>('/waste-bins/');
+      
+      // CRITICAL: Remove duplicates by ID before mapping
+      const uniqueBinsMap = new Map<string, any>();
+      for (const bin of bins) {
+        if (bin && bin.id && !uniqueBinsMap.has(bin.id)) {
+          uniqueBinsMap.set(bin.id, bin);
+        }
+      }
+      
+      const uniqueBins = Array.from(uniqueBinsMap.values());
+      
+      // Log if duplicates were found
+      if (bins.length !== uniqueBins.length) {
+        console.warn(`⚠️ API returned duplicate bins: ${bins.length} total, ${uniqueBins.length} unique. Removed ${bins.length - uniqueBins.length} duplicates.`);
+      }
+      
+      return uniqueBins.map(mapWasteBin);
+    } catch (error) {
+      console.error('Error fetching waste bins:', error);
+      return [];
+    }
   },
   
   getWasteBin: async (id: string): Promise<WasteBin> => {
@@ -338,8 +376,24 @@ export const ApiService = {
     makeRequest<void>(`/waste-bins/${id}/`, { method: 'DELETE' }),
 
   // Trucks
-  getTrucks: (): Promise<Truck[]> => 
-    makeRequest<Truck[]>('/trucks/'),
+  getTrucks: async (): Promise<Truck[]> => {
+    try {
+      const trucks = await makeRequest<Truck[]>('/trucks/');
+      
+      // Remove duplicates by ID
+      const uniqueTrucksMap = new Map<string, Truck>();
+      for (const truck of trucks) {
+        if (truck && truck.id && !uniqueTrucksMap.has(truck.id)) {
+          uniqueTrucksMap.set(truck.id, truck);
+        }
+      }
+      
+      return Array.from(uniqueTrucksMap.values());
+    } catch (error) {
+      console.error('Error fetching trucks:', error);
+      return [];
+    }
+  },
   
   getTruck: (id: string): Promise<Truck> => 
     makeRequest<Truck>(`/trucks/${id}/`),
@@ -355,11 +409,27 @@ export const ApiService = {
 
   // Facilities
   getFacilities: async (): Promise<Facility[]> => {
-    const data: any[] = await makeRequest<any[]>('/facilities/');
-    return data.map(f => ({
-      ...f,
-      boilers: (f.boilers || []).map((b: any) => mapBoilerFromBackend(b))
-    }));
+    try {
+      const data: any[] = await makeRequest<any[]>('/facilities/');
+      
+      // Remove duplicates by ID
+      const uniqueFacilitiesMap = new Map<string, any>();
+      for (const facility of data) {
+        if (facility && facility.id && !uniqueFacilitiesMap.has(facility.id)) {
+          uniqueFacilitiesMap.set(facility.id, facility);
+        }
+      }
+      
+      const uniqueFacilities = Array.from(uniqueFacilitiesMap.values());
+      
+      return uniqueFacilities.map(f => ({
+        ...f,
+        boilers: (f.boilers || []).map((b: any) => mapBoilerFromBackend(b))
+      }));
+    } catch (error) {
+      console.error('Error fetching facilities:', error);
+      return [];
+    }
   },
   
   getFacility: async (id: string): Promise<Facility> => {
@@ -413,8 +483,24 @@ export const ApiService = {
     makeRequest<void>(`/facilities/${id}/`, { method: 'DELETE' }),
 
   // Rooms
-  getRooms: (): Promise<Room[]> => 
-    makeRequest<Room[]>('/rooms/'),
+  getRooms: async (): Promise<Room[]> => {
+    try {
+      const rooms = await makeRequest<Room[]>('/rooms/');
+      
+      // Remove duplicates by ID
+      const uniqueRoomsMap = new Map<string, Room>();
+      for (const room of rooms) {
+        if (room && room.id && !uniqueRoomsMap.has(room.id)) {
+          uniqueRoomsMap.set(room.id, room);
+        }
+      }
+      
+      return Array.from(uniqueRoomsMap.values());
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+      return [];
+    }
+  },
   
   getRoom: (id: string): Promise<Room> => 
     makeRequest<Room>(`/rooms/${id}/`),
@@ -450,8 +536,24 @@ export const ApiService = {
 
   // Boilers
   getBoilers: async (): Promise<Boiler[]> => {
-    const data: any[] = await makeRequest<any[]>('/boilers/');
-    return data.map(b => mapBoilerFromBackend(b));
+    try {
+      const data: any[] = await makeRequest<any[]>('/boilers/');
+      
+      // Remove duplicates by ID
+      const uniqueBoilersMap = new Map<string, any>();
+      for (const boiler of data) {
+        if (boiler && boiler.id && !uniqueBoilersMap.has(boiler.id)) {
+          uniqueBoilersMap.set(boiler.id, boiler);
+        }
+      }
+      
+      const uniqueBoilers = Array.from(uniqueBoilersMap.values());
+      
+      return uniqueBoilers.map(b => mapBoilerFromBackend(b));
+    } catch (error) {
+      console.error('Error fetching boilers:', error);
+      return [];
+    }
   },
 
   getBoiler: async (id: string): Promise<Boiler> => {
@@ -570,9 +672,25 @@ export const ApiService = {
   
   // IoT Devices
   getIoTDevices: async (): Promise<IoTDevice[]> => {
-    const devices = await makeRequest<any[]>('/iot-devices/');
-    // Map snake_case -> camelCase for UI compatibility
-    return devices.map(mapIoTDevice);
+    try {
+      const devices = await makeRequest<any[]>('/iot-devices/');
+      
+      // Remove duplicates by ID
+      const uniqueDevicesMap = new Map<string, any>();
+      for (const device of devices) {
+        if (device && device.id && !uniqueDevicesMap.has(device.id)) {
+          uniqueDevicesMap.set(device.id, device);
+        }
+      }
+      
+      const uniqueDevices = Array.from(uniqueDevicesMap.values());
+      
+      // Map snake_case -> camelCase for UI compatibility
+      return uniqueDevices.map(mapIoTDevice);
+    } catch (error) {
+      console.error('Error fetching IoT devices:', error);
+      return [];
+    }
   },
   
   getIoTDevice: async (id: string): Promise<IoTDevice> => {

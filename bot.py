@@ -44,15 +44,18 @@ class WasteBinBot:
         if not self.api_token:
             await self.login_admin()
         else:
-            # Test if the token is still valid
+            # Test if the token is still valid by trying a simple API call
             headers = self.get_auth_headers()
             try:
-                response = requests.get(f"{self.api_base_url}/validate-token/", headers=headers)
+                # Use the correct endpoint: /auth/validate/ (not /validate-token/)
+                response = requests.get(f"{self.api_base_url}/auth/validate/", headers=headers)
                 if response.status_code != 200:
                     # Token might be expired, re-login
+                    logger.info("Token validation failed, re-logging in...")
                     await self.login_admin()
-            except:
+            except Exception as e:
                 # If validation fails, try to login again
+                logger.warning(f"Token validation error: {e}, re-logging in...")
                 await self.login_admin()
     
     async def login_admin(self):
@@ -655,21 +658,59 @@ class WasteBinBot:
         """
         import re
         
-        # Extract device ID
-        device_match = re.search(r'Qurilma:\s*(ESP-\w+)', message_text)
-        device_id = device_match.group(1) if device_match else None
+        # Extract device ID - try multiple patterns
+        device_id = None
         
-        # Extract temperature
-        temp_match = re.search(r'🌡 Harorat:\s*([\d.]+)\s*°C', message_text)
-        temperature = float(temp_match.group(1)) if temp_match else None
+        # Pattern 1: "Qurilma: ESP-XXXXX"
+        device_match = re.search(r'Qurilma:\s*(ESP-[\w]+)', message_text, re.IGNORECASE)
+        if device_match:
+            device_id = device_match.group(1).upper()
+        else:
+            # Pattern 2: "ESP-XXXXX" (standalone)
+            esp_match = re.search(r'ESP-([A-Za-z0-9]+)', message_text, re.IGNORECASE)
+            if esp_match:
+                device_id = f"ESP-{esp_match.group(1).upper()}"
+            else:
+                # Pattern 3: 🆔 emoji format
+                id_emoji_match = re.search(r'🆔\s*([A-Za-z0-9_-]+)', message_text)
+                if id_emoji_match:
+                    device_id = id_emoji_match.group(1).strip()
         
-        # Extract humidity
-        humidity_match = re.search(r'💧 Havo namligi:\s*([\d.]+)\s*%', message_text)
-        humidity = float(humidity_match.group(1)) if humidity_match else None
+        # Extract temperature - multiple patterns
+        temperature = None
+        # Pattern 1: 🌡 21.7°C
+        temp_match = re.search(r'🌡\s*([-+]?\d+(?:[\.,]\d+)?)\s*°?C', message_text, re.IGNORECASE)
+        if temp_match:
+            temperature = float(temp_match.group(1).replace(',', '.'))
+        else:
+            # Pattern 2: 🌡 Harorat: 18.9 °C
+            temp_legacy = re.search(r'Harorat:\s*([-+]?\d+(?:[\.,]\d+)?)\s*°?C', message_text, re.IGNORECASE)
+            if temp_legacy:
+                temperature = float(temp_legacy.group(1).replace(',', '.'))
         
-        # Extract sleep time
-        sleep_match = re.search(r'⏱ Sleep:\s*(\d+)\s*sekund', message_text)
-        sleep_seconds = int(sleep_match.group(1)) if sleep_match else None
+        # Extract humidity - multiple patterns
+        humidity = None
+        # Pattern 1: 💧 43.9%
+        hum_match = re.search(r'💧\s*([-+]?\d+(?:[\.,]\d+)?)\s*%', message_text)
+        if hum_match:
+            humidity = float(hum_match.group(1).replace(',', '.'))
+        else:
+            # Pattern 2: 💧 Havo namligi: 43.0 %
+            hum_legacy = re.search(r'Havo\s+namligi:\s*([-+]?\d+(?:[\.,]\d+)?)\s*%', message_text, re.IGNORECASE)
+            if hum_legacy:
+                humidity = float(hum_legacy.group(1).replace(',', '.'))
+        
+        # Extract sleep time - multiple patterns
+        sleep_seconds = None
+        # Pattern 1: ⏱ 2000s
+        sleep_match = re.search(r'⏱\s*(\d+)\s*s', message_text, re.IGNORECASE)
+        if sleep_match:
+            sleep_seconds = int(sleep_match.group(1))
+        else:
+            # Pattern 2: ⏱ Sleep: 1800 sekund
+            sleep_legacy = re.search(r'Sleep:\s*(\d+)\s*sekund', message_text, re.IGNORECASE)
+            if sleep_legacy:
+                sleep_seconds = int(sleep_legacy.group(1))
         
         if device_id:
             return {

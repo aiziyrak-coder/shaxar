@@ -84,10 +84,20 @@ class IoTMonitorBot:
         if id_emoji_match:
             device_id = id_emoji_match.group(1).strip()
         else:
-            # Fallback to any potential ID pattern if no emoji is found
-            id_match = re.search(r'(?:ID|id|:\s*)?([A-Za-z0-9_-]{3,})', message_text)
-            if id_match:
-                device_id = id_match.group(1).strip()
+            # Try ESP- format (ESP-A4C416, ESP-100FDA, etc.)
+            esp_match = re.search(r'ESP-([A-Za-z0-9]+)', message_text, re.IGNORECASE)
+            if esp_match:
+                device_id = f"ESP-{esp_match.group(1).upper()}"
+            else:
+                # Try "Qurilma:" format
+                qurilma_match = re.search(r'Qurilma:\s*(ESP-[A-Za-z0-9]+)', message_text, re.IGNORECASE)
+                if qurilma_match:
+                    device_id = qurilma_match.group(1).upper()
+                else:
+                    # Fallback to any potential ID pattern if no emoji is found
+                    id_match = re.search(r'(?:ID|id|:\s*)?([A-Za-z0-9_-]{3,})', message_text)
+                    if id_match:
+                        device_id = id_match.group(1).strip()
         
         # Enhanced temperature extraction - look for 🌡 emoji followed by value
         temperature = None

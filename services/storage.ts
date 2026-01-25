@@ -183,80 +183,147 @@ export const DB = {
 
     // Waste Bins - Get from API only, don't use mock data
     async getBins(): Promise<WasteBin[]> {
-        return getOrSeedAsync<WasteBin>(
-            KEYS.BINS,
-            () => [], // Don't use mock bins, get from API only
-            () => ApiService.getWasteBins()
-        );
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                // If no token, return empty array (don't use localStorage to prevent duplicates)
+                console.log('No auth token found, returning empty array for bins');
+                return [];
+            }
+            
+            // Get data from API only (no localStorage fallback to prevent duplicates)
+            const bins = await ApiService.getWasteBins();
+            
+            // CRITICAL: Remove duplicates by ID to prevent frontend showing 50+ bins when backend has 18
+            const uniqueBins = Array.from(
+                new Map(bins.map(bin => [bin.id, bin])).values()
+            );
+            
+            // Log if duplicates were found
+            if (bins.length !== uniqueBins.length) {
+                console.warn(`⚠️ Duplicate bins detected: ${bins.length} total, ${uniqueBins.length} unique. Removed ${bins.length - uniqueBins.length} duplicates.`);
+            }
+            
+            // Update localStorage with deduplicated data (for offline fallback only)
+            localStorage.setItem(KEYS.BINS, JSON.stringify(uniqueBins));
+            
+            return uniqueBins;
+        } catch (e) {
+            // Check if the error is due to authentication
+            if (e instanceof Error && e.message.includes('401')) {
+                console.log('Authentication failed for bins, returning empty array');
+                localStorage.removeItem('authToken');
+                return [];
+            }
+            
+            console.error(`API Error bins:`, e);
+            // Return empty array instead of localStorage data to prevent duplicates
+            return [];
+        }
     },
     async saveBin(bin: WasteBin): Promise<WasteBin> {
         try {
             const token = localStorage.getItem('authToken');
             if (!token) {
-                // If no token, just update local storage
+                // If no token, just update local storage (deduplicated)
                 const bins = JSON.parse(localStorage.getItem('smartcity_bins') || '[]');
+                // Remove duplicates first
+                const uniqueBins = Array.from(new Map(bins.map((b: WasteBin) => [b.id, b])).values());
                 // Find and replace if exists, otherwise add
-                const existingIndex = bins.findIndex(b => b.id === bin.id);
+                const existingIndex = uniqueBins.findIndex((b: WasteBin) => b.id === bin.id);
                 if (existingIndex !== -1) {
-                    bins[existingIndex] = bin;
+                    uniqueBins[existingIndex] = bin;
                 } else {
-                    bins.push(bin);
+                    uniqueBins.push(bin);
                 }
-                localStorage.setItem('smartcity_bins', JSON.stringify(bins));
+                localStorage.setItem('smartcity_bins', JSON.stringify(uniqueBins));
                 return bin; // Return the original bin
             }
-            
-            // For new bins, we should create them
-            // Don't send the ID when creating, let the backend generate its own
-            // Also, remove any properties that might cause server errors
-            const binForCreation = { ...bin };
-            delete binForCreation.id; // Don't send ID for creation
             
             // Get the user's organization ID from session if available
             const orgId = localStorage.getItem('organizationId');
             
+            // Check if bin has a valid UUID ID (36 characters with dashes) to determine if it's an update or create
+            const hasValidId = bin.id && bin.id.length === 36 && bin.id.includes('-');
+            
             // Clean the bin data to only include fields that the backend expects
             const cleanedBin = {
                 location: {
-                    lat: parseFloat(binForCreation.location.lat.toString()),
-                    lng: parseFloat(binForCreation.location.lng.toString()),
+                    lat: parseFloat(bin.location.lat.toString()),
+                    lng: parseFloat(bin.location.lng.toString()),
                 },
-                address: binForCreation.address,
-                tozaHudud: binForCreation.tozaHudud,
-                cameraUrl: binForCreation.cameraUrl,
-                googleMapsUrl: binForCreation.googleMapsUrl,
-                fillLevel: Number(binForCreation.fillLevel),
-                fillRate: Number(binForCreation.fillRate),
-                lastAnalysis: binForCreation.lastAnalysis,
-                imageUrl: binForCreation.imageUrl,
-                imageSource: binForCreation.imageSource,
-                isFull: Boolean(binForCreation.isFull),
-                qrCodeUrl: binForCreation.qrCodeUrl,
+                address: bin.address,
+                tozaHudud: bin.tozaHudud,
+                cameraUrl: bin.cameraUrl,
+                googleMapsUrl: bin.googleMapsUrl,
+                fillLevel: Number(bin.fillLevel),
+                fillRate: Number(bin.fillRate),
+                lastAnalysis: bin.lastAnalysis,
+                imageUrl: bin.imageUrl,
+                imageSource: bin.imageSource,
+                isFull: Boolean(bin.isFull),
+                qrCodeUrl: bin.qrCodeUrl,
                 deviceHealth: {
-                    batteryLevel: Number(binForCreation.deviceHealth.batteryLevel),
-                    signalStrength: Number(binForCreation.deviceHealth.signalStrength),
-                    lastPing: binForCreation.deviceHealth.lastPing,
-                    firmwareVersion: binForCreation.deviceHealth.firmwareVersion,
-                    isOnline: Boolean(binForCreation.deviceHealth.isOnline)
+                    batteryLevel: Number(bin.deviceHealth?.batteryLevel || 100),
+                    signalStrength: Number(bin.deviceHealth?.signalStrength || 100),
+                    lastPing: bin.deviceHealth?.lastPing || new Date().toISOString(),
+                    firmwareVersion: bin.deviceHealth?.firmwareVersion || '1.0.0',
+                    isOnline: Boolean(bin.deviceHealth?.isOnline ?? true)
                 },
                 organizationId: orgId || undefined,
             };
             
             try {
-                const createdBin = await ApiService.createWasteBin(cleanedBin as Partial<WasteBin> as WasteBin);
-                // Update local storage with the response from the server (which has the backend-generated ID)
-                const bins = JSON.parse(localStorage.getItem('smartcity_bins') || '[]');
-                const existingIndex = bins.findIndex(b => b.id === bin.id);
-                if (existingIndex !== -1) {
-                    bins[existingIndex] = createdBin;
+                let savedBin: WasteBin;
+                
+                if (hasValidId) {
+                    // Update existing bin
+                    console.log(`🔄 Updating existing bin: ${bin.id}`);
+                    savedBin = await ApiService.updateWasteBin(bin.id, cleanedBin as Partial<WasteBin>);
                 } else {
-                    bins.push(createdBin);
+                    // Create new bin (don't send ID, let backend generate it)
+                    console.log(`➕ Creating new bin (no valid ID provided)`);
+                    savedBin = await ApiService.createWasteBin(cleanedBin as Partial<WasteBin> as WasteBin);
                 }
-                localStorage.setItem('smartcity_bins', JSON.stringify(bins));
-                return createdBin; // Return the created bin with new ID
-            } catch (createError) {
-                console.error('Failed to create waste bin:', createError);
-                throw createError; // Re-throw to be caught by outer catch
+                
+                // Update local storage with deduplicated data
+                const bins = JSON.parse(localStorage.getItem('smartcity_bins') || '[]');
+                const uniqueBins = Array.from(new Map(bins.map((b: WasteBin) => [b.id, b])).values());
+                const existingIndex = uniqueBins.findIndex((b: WasteBin) => b.id === savedBin.id);
+                if (existingIndex !== -1) {
+                    uniqueBins[existingIndex] = savedBin;
+                } else {
+                    uniqueBins.push(savedBin);
+                }
+                localStorage.setItem('smartcity_bins', JSON.stringify(uniqueBins));
+                
+                return savedBin; // Return the saved bin from server
+            } catch (saveError: any) {
+                console.error('Failed to save waste bin:', saveError);
+                
+                // If it's a duplicate error, try to get the existing bin
+                if (saveError.status === 400 && saveError.body && 
+                    (saveError.body.error?.includes('already exists') || 
+                     saveError.body.error?.includes('duplicate'))) {
+                    console.log('⚠️ Duplicate bin detected, fetching existing bin...');
+                    try {
+                        // Try to find by address or location
+                        const allBins = await ApiService.getWasteBins();
+                        const existingBin = allBins.find(b => 
+                            b.address === bin.address || 
+                            (Math.abs(b.location.lat - bin.location.lat) < 0.0001 && 
+                             Math.abs(b.location.lng - bin.location.lng) < 0.0001)
+                        );
+                        if (existingBin) {
+                            console.log(`✅ Found existing bin: ${existingBin.id}`);
+                            return existingBin;
+                        }
+                    } catch (fetchError) {
+                        console.error('Error fetching existing bins:', fetchError);
+                    }
+                }
+                
+                throw saveError; // Re-throw to be caught by outer catch
             }
         } catch (e) {
             // Check if the error is due to authentication
@@ -275,11 +342,33 @@ export const DB = {
 
     // Trucks - Get from API only, don't use mock data
     async getTrucks(): Promise<Truck[]> {
-        return getOrSeedAsync<Truck>(
-            KEYS.TRUCKS,
-            () => [], // Don't use mock trucks, get from API only
-            () => ApiService.getTrucks()
-        );
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                return [];
+            }
+            
+            const trucks = await ApiService.getTrucks();
+            
+            // Remove duplicates by ID
+            const uniqueTrucks = Array.from(
+                new Map(trucks.map(truck => [truck.id, truck])).values()
+            );
+            
+            if (trucks.length !== uniqueTrucks.length) {
+                console.warn(`⚠️ Duplicate trucks detected: ${trucks.length} total, ${uniqueTrucks.length} unique.`);
+            }
+            
+            localStorage.setItem(KEYS.TRUCKS, JSON.stringify(uniqueTrucks));
+            return uniqueTrucks;
+        } catch (e) {
+            if (e instanceof Error && e.message.includes('401')) {
+                localStorage.removeItem('authToken');
+                return [];
+            }
+            console.error(`API Error trucks:`, e);
+            return [];
+        }
     },
     async saveTruck(truck: Truck): Promise<Truck> {
         try {
@@ -357,11 +446,33 @@ export const DB = {
 
     // Facilities
     async getFacilities(): Promise<Facility[]> {
-        return getOrSeedAsync<Facility>(
-            KEYS.FACILITIES,
-            () => [], // Don't use mock facilities, get from API only
-            () => ApiService.getFacilities()
-        );
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                return [];
+            }
+            
+            const facilities = await ApiService.getFacilities();
+            
+            // Remove duplicates by ID
+            const uniqueFacilities = Array.from(
+                new Map(facilities.map(facility => [facility.id, facility])).values()
+            );
+            
+            if (facilities.length !== uniqueFacilities.length) {
+                console.warn(`⚠️ Duplicate facilities detected: ${facilities.length} total, ${uniqueFacilities.length} unique.`);
+            }
+            
+            localStorage.setItem(KEYS.FACILITIES, JSON.stringify(uniqueFacilities));
+            return uniqueFacilities;
+        } catch (e) {
+            if (e instanceof Error && e.message.includes('401')) {
+                localStorage.removeItem('authToken');
+                return [];
+            }
+            console.error(`API Error facilities:`, e);
+            return [];
+        }
     },
     async saveFacility(facility: Facility): Promise<void> {
         try {
@@ -409,11 +520,33 @@ export const DB = {
 
     // Rooms
     async getRooms(): Promise<Room[]> {
-        return getOrSeedAsync<Room>(
-            'smartcity_rooms',
-            () => [], // Don't use mock rooms, get from API only
-            () => ApiService.getRooms()
-        );
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                return [];
+            }
+            
+            const rooms = await ApiService.getRooms();
+            
+            // Remove duplicates by ID
+            const uniqueRooms = Array.from(
+                new Map(rooms.map(room => [room.id, room])).values()
+            );
+            
+            if (rooms.length !== uniqueRooms.length) {
+                console.warn(`⚠️ Duplicate rooms detected: ${rooms.length} total, ${uniqueRooms.length} unique.`);
+            }
+            
+            localStorage.setItem('smartcity_rooms', JSON.stringify(uniqueRooms));
+            return uniqueRooms;
+        } catch (e) {
+            if (e instanceof Error && e.message.includes('401')) {
+                localStorage.removeItem('authToken');
+                return [];
+            }
+            console.error(`API Error rooms:`, e);
+            return [];
+        }
     },
     async saveRoom(room: Room): Promise<void> {
         try {
@@ -455,11 +588,33 @@ export const DB = {
 
     // Boilers
     async getBoilers(): Promise<Boiler[]> {
-        return getOrSeedAsync<Boiler>(
-            'smartcity_boilers',
-            () => [], // Don't use mock boilers, get from API only
-            () => ApiService.getBoilers()
-        );
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                return [];
+            }
+            
+            const boilers = await ApiService.getBoilers();
+            
+            // Remove duplicates by ID
+            const uniqueBoilers = Array.from(
+                new Map(boilers.map(boiler => [boiler.id, boiler])).values()
+            );
+            
+            if (boilers.length !== uniqueBoilers.length) {
+                console.warn(`⚠️ Duplicate boilers detected: ${boilers.length} total, ${uniqueBoilers.length} unique.`);
+            }
+            
+            localStorage.setItem('smartcity_boilers', JSON.stringify(uniqueBoilers));
+            return uniqueBoilers;
+        } catch (e) {
+            if (e instanceof Error && e.message.includes('401')) {
+                localStorage.removeItem('authToken');
+                return [];
+            }
+            console.error(`API Error boilers:`, e);
+            return [];
+        }
     },
     async saveBoiler(boiler: Boiler): Promise<void> {
         try {
@@ -789,11 +944,33 @@ export const DB = {
     
     // IoT Devices
     async getIoTDevices(): Promise<IoTDevice[]> {
-        return getOrSeedAsync<IoTDevice>(
-            'smartcity_iot_devices',
-            () => [], // Don't use mock IoT devices, get from API only
-            () => ApiService.getIoTDevices()
-        );
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                return [];
+            }
+            
+            const devices = await ApiService.getIoTDevices();
+            
+            // Remove duplicates by ID
+            const uniqueDevices = Array.from(
+                new Map(devices.map(device => [device.id, device])).values()
+            );
+            
+            if (devices.length !== uniqueDevices.length) {
+                console.warn(`⚠️ Duplicate IoT devices detected: ${devices.length} total, ${uniqueDevices.length} unique.`);
+            }
+            
+            localStorage.setItem('smartcity_iot_devices', JSON.stringify(uniqueDevices));
+            return uniqueDevices;
+        } catch (e) {
+            if (e instanceof Error && e.message.includes('401')) {
+                localStorage.removeItem('authToken');
+                return [];
+            }
+            console.error(`API Error IoT devices:`, e);
+            return [];
+        }
     },
     async saveIoTDevice(device: IoTDevice): Promise<void> {
         try {
