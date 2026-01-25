@@ -65,53 +65,50 @@ export function getCameraStatusMessage(bin: WasteBin): string {
 }
 
 /**
- * Deduplicate bins by ID, address, and location
+ * Deduplicate bins by ID and address only
+ * Location-based deduplication is too aggressive and removes valid bins
  * @param bins - Array of bins to deduplicate
  * @returns Deduplicated array
  */
 export function deduplicateBins(bins: WasteBin[]): WasteBin[] {
-  // First, deduplicate by ID (primary key)
+  // First, deduplicate by ID (primary key) - this is the most important
   const uniqueById = new Map<string, WasteBin>();
   const uniqueByAddress = new Map<string, WasteBin>();
-  const uniqueByLocation = new Map<string, WasteBin>();
   
   for (const bin of bins) {
     if (!bin || !bin.id) continue;
     
-    // Deduplicate by ID
+    // Deduplicate by ID - if same ID, keep the latest one
     if (!uniqueById.has(bin.id)) {
       uniqueById.set(bin.id, bin);
       
-      // Also track by address to catch duplicates with different IDs
-      if (bin.address) {
+      // Also track by address to catch duplicates with different IDs but same address
+      // Only if address is provided and not empty
+      if (bin.address && bin.address.trim()) {
         const addressKey = bin.address.trim().toLowerCase();
         if (!uniqueByAddress.has(addressKey)) {
           uniqueByAddress.set(addressKey, bin);
         } else {
-          // If we already have a bin with this address, keep the one with better data
+          // If we already have a bin with this exact address, keep the one with better data
           const existing = uniqueByAddress.get(addressKey)!;
-          if ((bin.imageUrl || bin.lastAnalysis) && !(existing.imageUrl || existing.lastAnalysis)) {
+          // Only replace if new bin has significantly better data
+          const newBinHasData = bin.imageUrl || bin.lastAnalysis || bin.fillLevel !== undefined;
+          const existingHasData = existing.imageUrl || existing.lastAnalysis || existing.fillLevel !== undefined;
+          
+          if (newBinHasData && !existingHasData) {
+            // New bin has data, existing doesn't - replace
             uniqueByAddress.set(addressKey, bin);
             uniqueById.set(bin.id, bin);
-          }
-        }
-      }
-      
-      // Also track by location (lat, lng) to catch duplicates at same location
-      if (bin.location && bin.location.lat && bin.location.lng) {
-        const locationKey = `${bin.location.lat.toFixed(4)},${bin.location.lng.toFixed(4)}`;
-        if (!uniqueByLocation.has(locationKey)) {
-          uniqueByLocation.set(locationKey, bin);
-        } else {
-          // If we already have a bin at this location, keep the one with better data
-          const existing = uniqueByLocation.get(locationKey)!;
-          if ((bin.imageUrl || bin.lastAnalysis) && !(existing.imageUrl || existing.lastAnalysis)) {
-            uniqueByLocation.set(locationKey, bin);
+            // Remove old bin if it has different ID
+            if (existing.id !== bin.id) {
+              uniqueById.delete(existing.id);
+            }
+          } else if (existing.id === bin.id) {
+            // Same ID, just update
             uniqueById.set(bin.id, bin);
-          } else if (existing.id !== bin.id) {
-            // If same location but different ID, remove the duplicate
-            uniqueById.delete(bin.id);
+            uniqueByAddress.set(addressKey, bin);
           }
+          // Otherwise, keep existing bin (don't add duplicate)
         }
       }
     }
